@@ -130,9 +130,8 @@ echo "💾 Setting up database..."
 touch database/database.sqlite
 php artisan migrate --force
 
-# Run seeders
-echo "🌱 Running database seeders..."
-php artisan db:seed --force
+# Skip seeders for now (compatibility issue with fake() helper)
+echo "⏭️ Skipping seeders - will create admin user manually..."
 
 # Build frontend assets
 echo "🎨 Building frontend assets..."
@@ -208,6 +207,20 @@ pm2 delete whatsapp-service 2>/dev/null || true
 pm2 start server.js --name whatsapp-service
 pm2 save
 pm2 startup | tail -n 1 | bash
+
+# Create admin user
+echo ""
+echo "👤 Creating admin user..."
+cd /var/www/vinetkaprocrm
+php artisan tinker --execute="
+\$user = new \App\Models\User();
+\$user->name = 'Admin';
+\$user->email = 'admin@vinetka.pro';
+\$user->password = bcrypt('admin123');
+\$user->role = 'admin';
+\$user->save();
+echo 'Admin user created successfully';
+"
 
 # Optimize Laravel
 echo "⚡ Optimizing Laravel..."
