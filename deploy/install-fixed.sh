@@ -60,19 +60,23 @@ sudo apt install -y certbot python3-certbot-nginx
 
 # Install Node.js 20
 echo "📗 Installing Node.js 20..."
-if ! command -v node &> /dev/null; then
+if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt install -y nodejs
+    echo "✅ Node.js installed: $(node --version)"
+    echo "✅ npm installed: $(npm --version)"
 else
     echo "✅ Node.js already installed: $(node --version)"
+    echo "✅ npm already installed: $(npm --version)"
 fi
 
 # Install PM2 for Node.js process management
 echo "⚙️ Installing PM2..."
 if ! command -v pm2 &> /dev/null; then
     sudo npm install -g pm2
+    echo "✅ PM2 installed: $(pm2 --version)"
 else
-    echo "✅ PM2 already installed"
+    echo "✅ PM2 already installed: $(pm2 --version)"
 fi
 
 # Install SQLite
