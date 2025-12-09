@@ -15,7 +15,8 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::query();
+        // Исключаем клиентов из списка пользователей (для них есть отдельная страница)
+        $query = User::where('role', '!=', 'client');
 
         // Search by name or email
         if ($request->filled('q')) {
@@ -26,18 +27,11 @@ class UserController extends Controller
             });
         }
 
-        // Filter by role
+        // Filter by role (но исключаем client)
         if ($request->filled('role')) {
-            $query->where('role', $request->get('role'));
-        }
-
-        // Filter by regular client flag
-        if ($request->has('is_regular_client')) {
-            $val = $request->get('is_regular_client');
-            if ($val === '1' || $val === 'true' || $val === 1) {
-                $query->where('is_regular_client', true);
-            } elseif ($val === '0' || $val === 'false' || $val === 0) {
-                $query->where('is_regular_client', false);
+            $role = $request->get('role');
+            if ($role !== 'client') {
+                $query->where('role', $role);
             }
         }
 
@@ -45,7 +39,7 @@ class UserController extends Controller
 
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['q', 'role', 'is_regular_client']),
+            'filters' => $request->only(['q', 'role']),
         ]);
     }
 
@@ -58,7 +52,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => 'required|in:super_admin,admin,sales_manager,photographer,editor,print_operator,client',
+            'role' => 'required|in:super_admin,admin,sales_manager,photographer,editor,print_operator',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -77,7 +71,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8',
-            'role' => 'required|in:super_admin,admin,sales_manager,photographer,editor,print_operator,client',
+            'role' => 'required|in:super_admin,admin,sales_manager,photographer,editor,print_operator',
         ]);
 
         if (!empty($validated['password'])) {

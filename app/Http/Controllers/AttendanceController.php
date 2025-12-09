@@ -133,13 +133,175 @@ class AttendanceController extends Controller
 
         $users = $query->get();
 
+        // Генерируем список всех дней в периоде
+        $days = [];
+        $currentDate = \Carbon\Carbon::parse($startDate);
+        $endDateCarbon = \Carbon\Carbon::parse($endDate);
+        
+        $dayNamesRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+        $dayNamesRuShort = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+        $monthNamesRu = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        $monthNamesRuShort = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        
+        while ($currentDate->lte($endDateCarbon)) {
+            $dayOfWeek = $currentDate->dayOfWeek; // 0 = воскресенье, 1 = понедельник...
+            $dayIndex = $dayOfWeek == 0 ? 6 : $dayOfWeek - 1; // Преобразуем в 0-6 где 0 = понедельник
+            $monthIndex = $currentDate->month - 1; // 0-11 для массива
+            
+            $days[] = [
+                'date' => $currentDate->format('Y-m-d'),
+                'day' => $currentDate->format('d'),
+                'day_name' => $currentDate->format('D'),
+                'day_name_ru' => $dayNamesRuShort[$dayIndex],
+                'month_name_ru' => $monthNamesRuShort[$monthIndex],
+            ];
+            $currentDate->addDay();
+        }
+
+        // Преобразуем attendances в удобный формат для таблицы
+        $usersWithAttendances = $users->map(function ($user) {
+            $attendancesMap = [];
+            foreach ($user->attendances as $attendance) {
+                // Форматируем дату в строку Y-m-d
+                $dateKey = is_string($attendance->date) 
+                    ? $attendance->date 
+                    : \Carbon\Carbon::parse($attendance->date)->format('Y-m-d');
+                
+                $attendancesMap[$dateKey] = [
+                    'check_in' => $attendance->check_in,
+                    'check_out' => $attendance->check_out,
+                    'notes' => $attendance->notes,
+                ];
+            }
+            
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'attendances' => $attendancesMap,
+            ];
+        });
+
         return Inertia::render('Attendance/Report', [
-            'users' => $users,
+            'users' => $usersWithAttendances,
+            'days' => $days,
             'filters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'user_id' => $userId,
             ],
         ]);
+    }
+
+    /**
+     * Страница для самостоятельной отметки сотрудника
+     */
+    public function myAttendance()
+    {
+        $user = auth()->user();
+        
+        // Админы не могут отмечаться самостоятельно
+        if (in_array($user->role, ['super_admin', 'admin'])) {
+            abort(403, 'Администраторы не могут отмечаться самостоятельно');
+        }
+        
+        $today = now()->format('Y-m-d');
+        
+        // Получаем отметку на сегодня
+        $todayAttendance = Attendance::where('user_id', $user->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        // Получаем последние 30 дней отметок
+        $recentAttendances = Attendance::where('user_id', $user->id)
+            ->where('date', '>=', now()->subDays(30)->format('Y-m-d'))
+            ->orderBy('date', 'desc')
+            ->get();
+
+        return Inertia::render('Attendance/MyAttendance', [
+            'todayAttendance' => $todayAttendance,
+            'recentAttendances' => $recentAttendances,
+        ]);
+    }
+
+    /**
+     * Отметка прихода (check-in)
+     */
+    public function checkIn()
+    {
+        $user = auth()->user();
+        
+        // Админы не могут отмечаться самостоятельно
+        if (in_array($user->role, ['super_admin', 'admin'])) {
+            return redirect()->back()->withErrors(['error' => 'Администраторы не могут отмечаться самостоятельно']);
+        }
+        
+        $today = now()->format('Y-m-d');
+        $currentTime = now()->format('H:i');
+
+        // Проверяем, не отметился ли уже сегодня
+        $existing = Attendance::where('user_id', $user->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if ($existing && $existing->check_in) {
+            return redirect()->back()->withErrors(['error' => 'Вы уже отметились сегодня']);
+        }
+
+        if ($existing) {
+            // Обновляем существующую запись
+            $existing->update(['check_in' => $currentTime]);
+            return redirect()->back()->with('success', 'Время прихода обновлено: ' . $currentTime);
+        } else {
+            // Создаём новую запись
+            Attendance::create([
+                'user_id' => $user->id,
+                'date' => $today,
+                'check_in' => $currentTime,
+            ]);
+            return redirect()->back()->with('success', 'Вы отметились на работу: ' . $currentTime);
+        }
+    }
+
+    /**
+     * Отметка ухода (check-out)
+     */
+    public function checkOut()
+    {
+        $user = auth()->user();
+        
+        // Админы не могут отмечаться самостоятельно
+        if (in_array($user->role, ['super_admin', 'admin'])) {
+            return redirect()->back()->withErrors(['error' => 'Администраторы не могут отмечаться самостоятельно']);
+        }
+        
+        $today = now()->format('Y-m-d');
+        $currentTime = now()->format('H:i');
+
+        // Проверяем, есть ли отметка прихода
+        $attendance = Attendance::where('user_id', $user->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if (!$attendance) {
+            return redirect()->back()->withErrors(['error' => 'Сначала отметьтесь на приход']);
+        }
+
+        if (!$attendance->check_in) {
+            return redirect()->back()->withErrors(['error' => 'Сначала отметьтесь на приход']);
+        }
+
+        if ($attendance->check_out) {
+            return redirect()->back()->withErrors(['error' => 'Вы уже отметились на уход сегодня']);
+        }
+
+        $attendance->update(['check_out' => $currentTime]);
+
+        // Вычисляем отработанные часы
+        $checkIn = \Carbon\Carbon::parse($attendance->check_in);
+        $checkOut = \Carbon\Carbon::parse($currentTime);
+        $hours = $checkOut->diffInMinutes($checkIn) / 60;
+
+        return redirect()->back()->with('success', 'Вы отметились на уход: ' . $currentTime . ' (отработано: ' . number_format($hours, 1) . ' ч)');
     }
 }

@@ -5,6 +5,7 @@ export default function OrderModal({ order, users, onClose }) {
     const { data, setData, put, processing, errors } = useForm({
         status: order?.status || 'pending',
         current_stage: order?.current_stage || 'new_request',
+        priority: order?.priority || 'normal',
         comment: order?.comment || '',
         assigned_photographer_id: order?.assigned_photographer_id || null,
         assigned_editor_id: order?.assigned_editor_id || null,
@@ -29,6 +30,13 @@ export default function OrderModal({ order, users, onClose }) {
         { value: 'payment', label: '8. Оплата', icon: '💳' },
         { value: 'delivery', label: '9. Доставка', icon: '🚚' },
         { value: 'completed', label: '10. Завершено', icon: '🎉' },
+    ];
+
+    const priorityOptions = [
+        { value: 'low', label: 'Низкий', color: 'text-gray-600' },
+        { value: 'normal', label: 'Обычный', color: 'text-blue-600' },
+        { value: 'high', label: 'Высокий', color: 'text-orange-600' },
+        { value: 'urgent', label: 'Срочный', color: 'text-red-600' },
     ];
 
     const handleSubmit = (e) => {
@@ -118,15 +126,31 @@ export default function OrderModal({ order, users, onClose }) {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
+                                <label className="text-sm text-neutral-600">Приоритет</label>
+                                <p className="font-medium text-neutral-900">
+                                    {order.priority ? (
+                                        <span className={`inline-flex px-2.5 py-1 text-xs font-medium border rounded-md ${
+                                            order.priority === 'low' ? 'bg-gray-100 text-gray-700 border-gray-300' :
+                                            order.priority === 'normal' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                                            order.priority === 'high' ? 'bg-orange-100 text-orange-700 border-orange-300' :
+                                            'bg-red-100 text-red-700 border-red-300'
+                                        }`}>
+                                            {priorityOptions.find(p => p.value === order.priority)?.label || order.priority}
+                                        </span>
+                                    ) : 'Обычный'}
+                                </p>
+                            </div>
+                            <div>
                                 <label className="text-sm text-neutral-600">Скидка</label>
                                 <p className="font-medium text-neutral-900">{order.has_discount ? 'Да' : 'Нет'}</p>
                             </div>
-                            <div>
-                                <label className="text-sm text-neutral-600">Сумма</label>
-                                <p className="font-medium text-neutral-900">
-                                    {order.total_price ? `${parseFloat(order.total_price).toLocaleString('ru-KZ')} ₸` : '-'}
-                                </p>
-                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-sm text-neutral-600">Сумма</label>
+                            <p className="font-medium text-neutral-900">
+                                {order.total_price ? `${parseFloat(order.total_price).toLocaleString('ru-KZ')} ₸` : '-'}
+                            </p>
                         </div>
 
                         {order.comment && (
@@ -141,6 +165,106 @@ export default function OrderModal({ order, users, onClose }) {
                             <p className="font-medium text-neutral-900">
                                 {new Date(order.created_at).toLocaleString('ru-RU')}
                             </p>
+                        </div>
+
+                        {/* Contract Section */}
+                        <div className="mt-6 pt-6 border-t border-neutral-200">
+                            <label className="text-sm font-medium text-neutral-700 mb-3 block">
+                                Договор
+                            </label>
+                            {order.contract_path ? (
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 flex items-center gap-2 px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-md">
+                                        <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <span className="text-sm text-neutral-700">Договор загружен</span>
+                                    </div>
+                                    <a
+                                        href={`/orders/${order.id}/download-contract`}
+                                        target="_blank"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                                    >
+                                        Скачать
+                                    </a>
+                                    <button
+                                        onClick={async () => {
+                                            if (!confirm('Удалить договор?')) return;
+                                            try {
+                                                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                                                const res = await fetch(`/orders/${order.id}/contract`, {
+                                                    method: 'DELETE',
+                                                    headers: {
+                                                        'X-CSRF-TOKEN': csrfToken,
+                                                        'Content-Type': 'application/json',
+                                                        'Accept': 'application/json',
+                                                        'X-Requested-With': 'XMLHttpRequest',
+                                                    },
+                                                });
+                                                
+                                                const data = await res.json();
+                                                
+                                                if (res.ok && data.success) {
+                                                    location.reload();
+                                                } else {
+                                                    alert(data.error || 'Ошибка при удалении');
+                                                }
+                                            } catch (e) {
+                                                console.error('Delete contract error:', e);
+                                                alert('Ошибка сети: ' + e.message);
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+                                    >
+                                        Удалить
+                                    </button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <form
+                                        onSubmit={async (e) => {
+                                            e.preventDefault();
+                                            const formData = new FormData(e.target);
+                                            try {
+                                                const res = await fetch(`/orders/${order.id}/upload-contract`, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                                    },
+                                                    body: formData,
+                                                });
+                                                if (res.ok) {
+                                                    location.reload();
+                                                } else {
+                                                    const data = await res.json();
+                                                    alert(data.message || 'Ошибка при загрузке');
+                                                }
+                                            } catch (e) {
+                                                console.error(e);
+                                                alert('Ошибка сети');
+                                            }
+                                        }}
+                                        className="flex items-center gap-3"
+                                    >
+                                        <input
+                                            type="file"
+                                            name="contract"
+                                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                            required
+                                            className="flex-1 px-4 py-2 border border-neutral-300 rounded-md text-sm"
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors text-sm font-medium"
+                                        >
+                                            Загрузить
+                                        </button>
+                                    </form>
+                                    <p className="text-xs text-neutral-500 mt-2">
+                                        Поддерживаемые форматы: PDF, DOC, DOCX, JPG, PNG (макс. 10MB)
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Workflow History */}
@@ -199,6 +323,32 @@ export default function OrderModal({ order, users, onClose }) {
                             </div>
                             {errors.current_stage && (
                                 <p className="mt-1.5 text-sm text-red-600">{errors.current_stage}</p>
+                            )}
+                        </div>
+
+                        {/* Priority */}
+                        <div>
+                            <label htmlFor="priority" className="block text-sm font-medium text-neutral-700 mb-2">
+                                Приоритет
+                            </label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {priorityOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => setData('priority', option.value)}
+                                        className={`px-3 py-2.5 text-sm rounded-md border transition-all ${
+                                            data.priority === option.value
+                                                ? 'bg-neutral-900 text-white border-neutral-900'
+                                                : `bg-white ${option.color} border-neutral-300 hover:border-neutral-400`
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                            {errors.priority && (
+                                <p className="mt-1.5 text-sm text-red-600">{errors.priority}</p>
                             )}
                         </div>
 

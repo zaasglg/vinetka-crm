@@ -20,9 +20,11 @@ export default function AppLayout({ children, auth }) {
 
     const navigation = [
         { name: 'Главная', href: '/dashboard', icon: HomeIcon, roles: ['all'] },
-        { name: 'Пользователи', href: '/users', icon: UsersIcon, roles: ['super_admin', 'admin'] },
+        { name: 'Сотрудники', href: '/users', icon: UsersIcon, roles: ['super_admin', 'admin'] },
+        { name: 'Клиенты', href: '/clients', icon: UsersIcon, roles: ['super_admin', 'admin'] },
         { name: 'Заявки', href: '/orders', icon: DocumentIcon, roles: ['super_admin', 'admin', 'sales_manager'] },
         { name: 'Расписание', href: '/schedule', icon: CalendarIcon, roles: ['super_admin', 'admin', 'photographer'] },
+        { name: 'Моя отметка', href: '/attendance/my', icon: ClockIcon, roles: ['sales_manager', 'photographer', 'editor', 'print_operator'] },
         { name: 'Учёт времени', href: '/attendance', icon: ClockIcon, roles: ['super_admin', 'admin'] },
         { name: 'Отчёт времени', href: '/attendance/report', icon: ChartIcon, roles: ['super_admin', 'admin'] },
         { name: 'WhatsApp чат', href: '/whatsapp/chat', icon: ChatIcon, roles: ['super_admin', 'admin', 'sales_manager'] },

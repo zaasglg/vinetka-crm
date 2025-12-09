@@ -1,37 +1,30 @@
 import { useForm } from '@inertiajs/react';
 import { useEffect } from 'react';
 
-export default function UserModal({ user, onClose, auth }) {
-    const isEditing = !!user;
+export default function ClientModal({ client, onClose, auth }) {
+    const isEditing = !!client;
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
-        name: user?.name || '',
-        email: user?.email || '',
+        name: client?.name || '',
+        email: client?.email || '',
+        phone: client?.phone || '',
         password: '',
-        role: user?.role || 'client',
+        is_regular_client: client?.is_regular_client || false,
+        comment: client?.comment || '',
     });
-
-    const roles = [
-        { value: 'super_admin', label: 'Супер-администратор' },
-        { value: 'admin', label: 'Администратор' },
-        { value: 'sales_manager', label: 'Менеджер по продажам' },
-        { value: 'photographer', label: 'Фотограф' },
-        { value: 'editor', label: 'Монтажёр/Ретушёр' },
-        { value: 'print_operator', label: 'Оператор печати' },
-    ];
 
     const handleSubmit = (e) => {
         e.preventDefault();
 
         if (isEditing) {
-            put(`/users/${user.id}`, {
+            put(`/clients/${client.id}`, {
                 onSuccess: () => {
                     reset();
                     onClose();
                 },
             });
         } else {
-            post('/users', {
+            post('/clients', {
                 onSuccess: () => {
                     reset();
                     onClose();
@@ -54,7 +47,7 @@ export default function UserModal({ user, onClose, auth }) {
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
                     <h2 className="text-xl font-medium text-neutral-900">
-                        {isEditing ? 'Редактировать пользователя' : 'Добавить пользователя'}
+                        {isEditing ? 'Редактировать клиента' : 'Добавить клиента'}
                     </h2>
                     <button
                         onClick={onClose}
@@ -71,7 +64,7 @@ export default function UserModal({ user, onClose, auth }) {
                     {/* Name */}
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium text-neutral-700 mb-2">
-                            Имя
+                            Имя <span className="text-red-500">*</span>
                         </label>
                         <input
                             id="name"
@@ -90,7 +83,7 @@ export default function UserModal({ user, onClose, auth }) {
                     {/* Email */}
                     <div>
                         <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-2">
-                            Email
+                            Email <span className="text-red-500">*</span>
                         </label>
                         <input
                             id="email"
@@ -98,11 +91,29 @@ export default function UserModal({ user, onClose, auth }) {
                             value={data.email}
                             onChange={e => setData('email', e.target.value)}
                             className="w-full px-4 py-2.5 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                            placeholder="user@example.com"
+                            placeholder="client@example.com"
                             required
                         />
                         {errors.email && (
                             <p className="mt-1.5 text-sm text-red-600">{errors.email}</p>
+                        )}
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-2">
+                            Телефон
+                        </label>
+                        <input
+                            id="phone"
+                            type="text"
+                            value={data.phone}
+                            onChange={e => setData('phone', e.target.value)}
+                            className="w-full px-4 py-2.5 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+                            placeholder="+7 777 123 4567"
+                        />
+                        {errors.phone && (
+                            <p className="mt-1.5 text-sm text-red-600">{errors.phone}</p>
                         )}
                     </div>
 
@@ -114,9 +125,9 @@ export default function UserModal({ user, onClose, auth }) {
                                 <button
                                     type="button"
                                     onClick={async () => {
-                                        if (!confirm('Сгенерировать пароль для этого пользователя?')) return;
+                                        if (!confirm('Сгенерировать пароль для этого клиента?')) return;
                                         try {
-                                            const res = await fetch(`/users/${user.id}/generate-password`, {
+                                            const res = await fetch(`/clients/${client.id}/generate-password`, {
                                                 method: 'POST',
                                                 headers: {
                                                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
@@ -125,7 +136,6 @@ export default function UserModal({ user, onClose, auth }) {
                                             });
                                             const data = await res.json();
                                             if (res.ok && data.success) {
-                                                // Set generated password into form so admin can save or copy
                                                 setData('password', data.password);
                                                 alert('Сгенерированный пароль: ' + data.password);
                                             } else {
@@ -156,28 +166,43 @@ export default function UserModal({ user, onClose, auth }) {
                         )}
                     </div>
 
-                    {/* Role */}
+                    {/* Comment */}
                     <div>
-                        <label htmlFor="role" className="block text-sm font-medium text-neutral-700 mb-2">
-                            Роль
+                        <label htmlFor="comment" className="block text-sm font-medium text-neutral-700 mb-2">
+                            Комментарий
                         </label>
-                        <select
-                            id="role"
-                            value={data.role}
-                            onChange={e => setData('role', e.target.value)}
-                            className="w-full px-4 py-2.5 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                            required
-                        >
-                            {roles.map((role) => (
-                                <option key={role.value} value={role.value}>
-                                    {role.label}
-                                </option>
-                            ))}
-                        </select>
-                        {errors.role && (
-                            <p className="mt-1.5 text-sm text-red-600">{errors.role}</p>
+                        <textarea
+                            id="comment"
+                            value={data.comment}
+                            onChange={e => setData('comment', e.target.value)}
+                            rows={4}
+                            className="w-full px-4 py-2.5 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all resize-none"
+                            placeholder="Добавьте заметки о клиенте..."
+                        />
+                        {errors.comment && (
+                            <p className="mt-1.5 text-sm text-red-600">{errors.comment}</p>
                         )}
                     </div>
+
+                    {/* Regular Client Flag */}
+                    {isEditing && (
+                        <div>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={data.is_regular_client}
+                                    onChange={e => setData('is_regular_client', e.target.checked)}
+                                    className="w-4 h-4 text-neutral-900 border-neutral-300 rounded focus:ring-neutral-900"
+                                />
+                                <span className="text-sm font-medium text-neutral-700">
+                                    Постоянный клиент
+                                </span>
+                            </label>
+                            {errors.is_regular_client && (
+                                <p className="mt-1.5 text-sm text-red-600">{errors.is_regular_client}</p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Actions */}
                     <div className="flex gap-3 pt-4">
@@ -201,3 +226,4 @@ export default function UserModal({ user, onClose, auth }) {
         </div>
     );
 }
+

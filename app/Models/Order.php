@@ -10,6 +10,7 @@ class Order extends Model
         'city',
         'custom_city',
         'grade_level',
+        'institution_type',
         'album_type',
         'spreads',
         'locations',
@@ -19,12 +20,14 @@ class Order extends Model
         'has_discount',
         'total_price',
         'status',
+        'priority',
         'current_stage',
         'photoshoot_dates',
         'assigned_photographer_id',
         'assigned_editor_id',
         'payment_date',
         'delivery_date',
+        'contract_path',
     ];
 
     protected $casts = [

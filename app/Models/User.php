@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'role',
         'is_regular_client',
+        'comment',
     ];
 
     /**

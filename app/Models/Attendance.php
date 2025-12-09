@@ -16,8 +16,6 @@ class Attendance extends Model
 
     protected $casts = [
         'date' => 'date',
-        'check_in' => 'datetime:H:i',
-        'check_out' => 'datetime:H:i',
     ];
 
     public function user()
@@ -31,8 +29,9 @@ class Attendance extends Model
             return null;
         }
 
-        $checkIn = \Carbon\Carbon::parse($this->check_in);
-        $checkOut = \Carbon\Carbon::parse($this->check_out);
+        // Parse time strings (format: H:i)
+        $checkIn = \Carbon\Carbon::createFromFormat('H:i:s', $this->check_in);
+        $checkOut = \Carbon\Carbon::createFromFormat('H:i:s', $this->check_out);
         
         return $checkOut->diffInMinutes($checkIn) / 60;
     }

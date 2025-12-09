@@ -23,15 +23,29 @@ Route::middleware('auth')->group(function () {
     // Generate password for a user (admins only)
     Route::post('/users/{user}/generate-password', [\App\Http\Controllers\UserController::class, 'generatePassword'])->name('users.generate-password');
     
+    // Clients management (separate page)
+    Route::get('/clients', [\App\Http\Controllers\ClientController::class, 'index'])->name('clients.index');
+    Route::post('/clients', [\App\Http\Controllers\ClientController::class, 'store'])->name('clients.store');
+    Route::put('/clients/{user}', [\App\Http\Controllers\ClientController::class, 'update'])->name('clients.update');
+    Route::delete('/clients/{user}', [\App\Http\Controllers\ClientController::class, 'destroy'])->name('clients.destroy');
+    Route::post('/clients/{user}/toggle-regular', [\App\Http\Controllers\ClientController::class, 'toggleRegular'])->name('clients.toggle-regular');
+    Route::post('/clients/{user}/generate-password', [\App\Http\Controllers\ClientController::class, 'generatePassword'])->name('clients.generate-password');
+    
     // Orders management
     Route::get('/orders', [\App\Http\Controllers\OrderManagementController::class, 'index'])->name('orders.index');
     Route::put('/orders/{order}', [\App\Http\Controllers\OrderManagementController::class, 'update'])->name('orders.update');
     Route::delete('/orders/{order}', [\App\Http\Controllers\OrderManagementController::class, 'destroy'])->name('orders.destroy');
     // Create a client user from an order (admins only)
     Route::post('/orders/{order}/create-client', [\App\Http\Controllers\OrderManagementController::class, 'createClientFromOrder'])->name('orders.create-client');
+    // Contract management
+    Route::post('/orders/{order}/upload-contract', [\App\Http\Controllers\OrderManagementController::class, 'uploadContract'])->name('orders.upload-contract');
+    Route::delete('/orders/{order}/contract', [\App\Http\Controllers\OrderManagementController::class, 'deleteContract'])->name('orders.delete-contract');
+    Route::get('/orders/{order}/download-contract', [\App\Http\Controllers\OrderManagementController::class, 'downloadContract'])->name('orders.download-contract');
     
     // Schedule
     Route::get('/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedule.index');
+    Route::post('/schedule/add-photoshoot', [\App\Http\Controllers\ScheduleController::class, 'addPhotoshootDate'])->name('schedule.add-photoshoot');
+    Route::post('/schedule/remove-photoshoot/{order}', [\App\Http\Controllers\ScheduleController::class, 'removePhotoshootDate'])->name('schedule.remove-photoshoot');
     
     // Attendance
     Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
@@ -39,6 +53,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/attendance/{attendance}', [\App\Http\Controllers\AttendanceController::class, 'update'])->name('attendance.update');
     Route::delete('/attendance/{attendance}', [\App\Http\Controllers\AttendanceController::class, 'destroy'])->name('attendance.destroy');
     Route::get('/attendance/report', [\App\Http\Controllers\AttendanceController::class, 'report'])->name('attendance.report');
+    
+    // My Attendance (для сотрудников)
+    Route::get('/attendance/my', [\App\Http\Controllers\AttendanceController::class, 'myAttendance'])->name('attendance.my');
+    Route::post('/attendance/check-in', [\App\Http\Controllers\AttendanceController::class, 'checkIn'])->name('attendance.check-in');
+    Route::post('/attendance/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut'])->name('attendance.check-out');
     
     // Projects
     Route::get('/orders/{order}/project', [\App\Http\Controllers\ProjectController::class, 'show'])->name('projects.show');

@@ -2,18 +2,10 @@ import AppLayout from '@/Layouts/AppLayout';
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 
-export default function AttendanceReport({ auth, users = [], filters }) {
+export default function AttendanceReport({ auth, users = [], days = [], filters }) {
     const [startDate, setStartDate] = useState(filters.start_date);
     const [endDate, setEndDate] = useState(filters.end_date);
     const [selectedUserId, setSelectedUserId] = useState(filters.user_id || '');
-    // Track which user panels are open in the accordion
-    const [openUserIds, setOpenUserIds] = useState([]);
-
-    const toggleUser = (userId) => {
-        setOpenUserIds((prev) =>
-            prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-        );
-    };
 
     const handleFilter = () => {
         router.get('/attendance/report', {
@@ -24,21 +16,28 @@ export default function AttendanceReport({ auth, users = [], filters }) {
     };
 
     const calculateWorkHours = (checkIn, checkOut) => {
-        if (!checkIn || !checkOut) return 0;
+        if (!checkIn || !checkOut) return null;
         const [inH, inM] = checkIn.split(':').map(Number);
         const [outH, outM] = checkOut.split(':').map(Number);
         return (outH * 60 + outM - (inH * 60 + inM)) / 60;
     };
 
-    const getTotalHours = (attendances) => {
-        return attendances.reduce((sum, att) => {
-            return sum + calculateWorkHours(att.check_in, att.check_out);
-        }, 0).toFixed(1);
+    // Вычисляем общее количество часов для каждого сотрудника
+    const calculateTotalHours = (user) => {
+        let total = 0;
+        Object.values(user.attendances || {}).forEach(attendance => {
+            if (attendance.check_in && attendance.check_out) {
+                const hours = calculateWorkHours(attendance.check_in, attendance.check_out);
+                if (hours !== null) {
+                    total += hours;
+                }
+            }
+        });
+        return total;
     };
 
-    const getWorkDays = (attendances) => {
-        return attendances.filter(att => att.check_in && att.check_out).length;
-    };
+    // Получаем всех пользователей для фильтра
+    const allUsersForFilter = users.map(u => ({ id: u.id, name: u.name }));
 
     return (
         <AppLayout auth={auth}>
@@ -49,7 +48,7 @@ export default function AttendanceReport({ auth, users = [], filters }) {
                         Отчёт по рабочему времени
                     </h1>
                     <p className="text-neutral-600">
-                        Детальный отчёт по каждому сотруднику
+                        Календарная таблица отметок сотрудников
                     </p>
                 </div>
 
@@ -88,7 +87,7 @@ export default function AttendanceReport({ auth, users = [], filters }) {
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900"
                             >
                                 <option value="">Все сотрудники</option>
-                                {users.map(user => (
+                                {allUsersForFilter.map(user => (
                                     <option key={user.id} value={user.id}>{user.name}</option>
                                 ))}
                             </select>
@@ -104,124 +103,112 @@ export default function AttendanceReport({ auth, users = [], filters }) {
                     </div>
                 </div>
 
-                {/* Report */}
-                <div className="space-y-6">
-                    {users.map(user => {
-                        const isOpen = openUserIds.includes(user.id);
-                        return (
-                            <div key={user.id} className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
-                                {/* Accordion header */}
-                                <button
-                                    type="button"
-                                    onClick={() => toggleUser(user.id)}
-                                    className="w-full text-left px-6 py-4 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between hover:bg-neutral-100"
-                                    aria-expanded={isOpen}
-                                >
-                                    <div>
-                                        <h3 className="text-lg font-medium text-neutral-900">{user.name}</h3>
-                                        <p className="text-sm text-neutral-600">{user.email}</p>
-                                    </div>
-
-                                    <div className="flex items-center gap-6">
-                                        <div className="text-right">
-                                            <div className="text-sm text-neutral-600">Рабочих дней</div>
-                                            <div className="text-2xl font-light text-neutral-900">
-                                                {getWorkDays(user.attendances)}
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-sm text-neutral-600">Всего часов</div>
-                                            <div className="text-2xl font-light text-neutral-900">
-                                                {getTotalHours(user.attendances)} ч
-                                            </div>
-                                        </div>
-
-                                        <svg
-                                            className={`w-5 h-5 text-neutral-500 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`}
-                                            viewBox="0 0 20 20"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
+                {/* Calendar Table */}
+                {users.length > 0 && days.length > 0 ? (
+                    <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    {/* Header row with days */}
+                                    <tr>
+                                        <th className="sticky left-0 z-20 bg-neutral-100 border-r-2 border-b-2 border-neutral-300 px-4 py-3 text-left text-sm font-semibold text-neutral-900 min-w-[200px] shadow-sm">
+                                            Сотрудник
+                                        </th>
+                                        {days.map((day, index) => (
+                                            <th
+                                                key={index}
+                                                className="bg-neutral-50 border-b-2 border-r border-neutral-200 px-2 py-2 text-center min-w-[110px]"
+                                            >
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-neutral-500 text-[10px] font-medium uppercase mb-0.5">
+                                                        {day.day_name_ru}
+                                                    </span>
+                                                    <span className="text-neutral-900 font-bold text-sm mb-0.5">
+                                                        {day.day}
+                                                    </span>
+                                                    <span className="text-neutral-600 text-[9px] font-medium">
+                                                        {day.month_name_ru}
+                                                    </span>
+                                                </div>
+                                            </th>
+                                        ))}
+                                        <th className="bg-neutral-100 border-b-2 border-r-2 border-neutral-300 px-4 py-3 text-center text-sm font-semibold text-neutral-900 min-w-[120px]">
+                                            Итого
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {users.map((user, userIndex) => (
+                                        <tr 
+                                            key={user.id} 
+                                            className={userIndex % 2 === 0 ? 'bg-white hover:bg-neutral-50' : 'bg-neutral-50 hover:bg-neutral-100'}
                                         >
-                                            <path d="M5 8L10 13L15 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </div>
-                                </button>
-
-                                {/* Accordion content */}
-                                {isOpen ? (
-                                    user.attendances && user.attendances.length > 0 ? (
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full">
-                                                <thead className="bg-neutral-50 border-b border-neutral-200">
-                                                    <tr>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase">
-                                                            Дата
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase">
-                                                            День недели
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase">
-                                                            Приход
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase">
-                                                            Уход
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase">
-                                                            Часов
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase">
-                                                            Заметки
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-neutral-200">
-                                                    {user.attendances.map((attendance) => {
-                                                        const date = new Date(attendance.date);
-                                                        const dayOfWeek = date.toLocaleDateString('ru-RU', { weekday: 'short' });
-                                                        const hours = calculateWorkHours(attendance.check_in, attendance.check_out);
-                                                        
-                                                        return (
-                                                            <tr key={attendance.id} className="hover:bg-neutral-50">
-                                                                <td className="px-6 py-3 text-sm text-neutral-900">
-                                                                    {date.toLocaleDateString('ru-RU')}
-                                                                </td>
-                                                                <td className="px-6 py-3 text-sm text-neutral-600 capitalize">
-                                                                    {dayOfWeek}
-                                                                </td>
-                                                                <td className="px-6 py-3 text-sm text-neutral-900">
-                                                                    {attendance.check_in || '-'}
-                                                                </td>
-                                                                <td className="px-6 py-3 text-sm text-neutral-900">
-                                                                    {attendance.check_out || '-'}
-                                                                </td>
-                                                                <td className="px-6 py-3 text-sm font-medium text-neutral-900">
-                                                                    {hours > 0 ? hours.toFixed(1) + ' ч' : '-'}
-                                                                </td>
-                                                                <td className="px-6 py-3 text-sm text-neutral-600">
-                                                                    {attendance.notes || '-'}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    ) : (
-                                        <div className="px-6 py-8 text-center text-neutral-500">
-                                            Нет записей за выбранный период
-                                        </div>
-                                    )
-                                ) : null}
-                            </div>
-                        );
-                    })}
-
-                    {users.length === 0 && (
-                        <div className="bg-white border border-neutral-200 rounded-lg px-6 py-12 text-center text-neutral-500">
-                            Нет данных для отображения
+                                            {/* Employee name column */}
+                                            <td className="sticky left-0 z-10 bg-inherit border-r-2 border-b border-neutral-200 px-4 py-3 font-medium text-neutral-900 min-w-[200px] shadow-sm">
+                                                <div>
+                                                    <div className="font-semibold text-sm">{user.name}</div>
+                                                    <div className="text-xs text-neutral-500 mt-0.5">{user.email}</div>
+                                                </div>
+                                            </td>
+                                            
+                                            {/* Days columns */}
+                                            {days.map((day, dayIndex) => {
+                                                const attendance = user.attendances[day.date] || null;
+                                                const hours = attendance 
+                                                    ? calculateWorkHours(attendance.check_in, attendance.check_out)
+                                                    : null;
+                                                
+                                                return (
+                                                    <td
+                                                        key={dayIndex}
+                                                        className="border-r border-b border-neutral-200 px-2 py-3 text-center text-xs align-top"
+                                                    >
+                                                        {attendance ? (
+                                                            <div className="space-y-1.5">
+                                                                {attendance.check_in && (
+                                                                    <div className="text-blue-700 font-semibold text-[11px]">
+                                                                        Приход: {attendance.check_in}
+                                                                    </div>
+                                                                )}
+                                                                {attendance.check_out && (
+                                                                    <div className="text-red-700 font-semibold text-[11px]">
+                                                                        Уход: {attendance.check_out}
+                                                                    </div>
+                                                                )}
+                                                                {hours !== null && hours > 0 && (
+                                                                    <div className="text-neutral-700 font-medium text-[10px] mt-1.5 pt-1 border-t border-neutral-200">
+                                                                        {hours.toFixed(1)} ч
+                                                                    </div>
+                                                                )}
+                                                                {!attendance.check_in && !attendance.check_out && (
+                                                                    <div className="text-neutral-400 text-[10px]">
+                                                                        —
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-neutral-200">—</div>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                            {/* Total hours column */}
+                                            <td className="border-r-2 border-b border-neutral-200 px-3 py-3 text-center font-bold text-neutral-900 bg-neutral-50 min-w-[120px]">
+                                                <div className="text-sm">
+                                                    <span className="text-blue-700">{calculateTotalHours(user).toFixed(1)} ч</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
-                </div>
+                    </div>
+                ) : (
+                    <div className="bg-white border border-neutral-200 rounded-lg px-6 py-12 text-center text-neutral-500">
+                        Нет данных для отображения
+                    </div>
+                )}
             </div>
         </AppLayout>
     );

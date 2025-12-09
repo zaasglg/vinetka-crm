@@ -112,10 +112,10 @@ sudo chmod -R 775 /var/www/vinetkaprocrm/bootstrap/cache
 
 # Configure Nginx
 echo "🌐 Configuring Nginx..."
-sudo tee /etc/nginx/sites-available/vinetkaprocrm > /dev/null <<'EOF'
+sudo tee /etc/nginx/sites-available/vinetkaprocrm > /dev/null <<EOF
 server {
     listen 80;
-    server_name _;
+    server_name vinetkapro.my www.vinetkapro.my;
     root /var/www/vinetkaprocrm/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -126,7 +126,7 @@ server {
     charset utf-8;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
     location = /favicon.ico { access_log off; log_not_found off; }
@@ -134,9 +134,9 @@ server {
 
     error_page 404 /index.php;
 
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    location ~ \.php\$ {
+        fastcgi_pass unix:/var/run/php/php$PHP_VERSION-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
     }
 
